@@ -1,7 +1,3 @@
-#Var $CompanyFolder is the OU container all users will be created in.
-#Set this variable before running the code.
-$COMPANY_FOLDER = "GrowOffice"
-
 #Designates the working Directory and navigates there.
 $scriptpath = $MyInvocation.MyCommand.Path
 $dir = Split-Path $scriptpath
@@ -12,9 +8,11 @@ cd $dir
 Try{$PowershellTest = Get-MailBox -ErrorAction Stop}
 Catch{}
 
+#Warning that mailboxes will not be created since the program was not run in Exchange management console.
 If (!$PowershellTest)
 {
-   $Reply = [System.Windows.Forms.MessageBox]::Show("Mailboxs will not be created unless this is run from the Exchange Managment Console" , "Warning" , 1)
+   $Reply = [System.Windows.Forms.MessageBox]::Show("Mailboxs will not be created unless this is run from the Exchange Managment Console.
+   Hit `"OK`" to continue or `"Cancel`" to exit." , "Warning" , 1)
    If ($Reply -eq "Cancel")
    {exit}
 }
@@ -51,17 +49,36 @@ foreach ($User in $Users)
     $SAM =  $User.username 
     $Email = $User.EmailAddress
     $Policy = $User.EmailPolicy
+    
+    #If FirstName or OU are blank, throw error and exit.
+    If (!$User.Firstname -or !$User.OU)
+    {
+        [System.Windows.Forms.MessageBox]::Show("There are errors in the user config file ""userlist.csv"", 
+        please fix them and run this program again.`r`nRequired items are: Username, Firstname and OU","ERROR", 0)
+        exit 1
+    }
+    #If Var $Detailedname is NULL set it to $UserFirstName + $UserLastName
+    If (!$Detailedname){$Detailedname = $UserFirstname; If ($UserLastName){$Detailedname += " $UserLastName"}}
+    #If $User.password doesn't exist, use "P@ssword" to initialize.
+    If (!$User.Password){$Password = "P@ssword"}
+    #If $User.username does not exist create it with Firstname and lastname.
+    If (!$UserName){If ($UserLastName){$UserName=$UserFirstname.Substring(0,1) + $UserLastName} Else {$UserName=$UserFirstname}}
+
      <#
     Designates which OU the new users are to be created in.
     Var $pos designates the dilimiter used in the "DC" variables
-    Var "OU" is set by Var $CompanyFolder
+    Var "OU" imported directly from OU column.
     Var "DC" is set by the left part of the $Domain variable delimited by "."
     Var "DC" is set by the right part of the $Domain variable delimited by "."
-    If this variable is left blank User will be created in "Default $OU = "OU=Users,DC=gre,DC=local"
+    If this variable is left blank User will be created in "Default $OU = "OU=Users,DC=ts,DC=local"
     #>
     $pos = $Domain.IndexOf(".")
-    $OU = "OU=$COMPANY_FOLDER,DC=" + $Domain.Substring(0, $pos) + ",DC=" + $Domain.Substring($pos+1)
+    $OU = "OU=" + $User.OU + ",DC=" + $Domain.Substring(0, $pos) + ",DC=" + $Domain.Substring($pos+1)
     
+    #If defined OU does not exist, create OU.
+    If (![ADSI]::Exists("LDAP://$OU")){New-ADOrganizationalUnit $User.OU}
+
+
     #Checks to see if a user already exists with this username
     #Var $UserTest is used to store the output if a user exists
     Try {$UserTest = get-aduser $UserName} 
@@ -81,6 +98,12 @@ foreach ($User in $Users)
     
     If ($PowershellTest)
     {
+       If ($User.EmailPolicy = "FALSE" -and !$User.emailAddress)
+       {
+          MsgBox "Email address is marked assigned but has been left blank, Please review $Detailedname's email settings."
+          exit
+       }
+
        #Checks to see if a user mailbox exists for this user
        #Var $MailTest is used to store the output if a user mailbox exists
        #Switch "-ErrorAction Stop" is necessary for Try|Catch since Try|Catch doesn't catch non-terminating errors and would therefore fail without designating "Stop"
