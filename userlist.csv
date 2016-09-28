@@ -1,0 +1,3 @@
+Name,Password,username,LastName,FirstName,EmailAddress,EmailPolicy
+Test,NewServer1,Test, ,Test,Test@growre.com,FALSE
+Test2,NewServer1,Test2, ,Test2,Test2email@growre.com,TRUE
