@@ -1,3 +1,6 @@
+[void] [System.Reflection.Assembly]::LoadWithPartialName("System.Drawing") 
+[void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") 
+
 #Designates the working Directory and navigates there.
 $scriptpath = $MyInvocation.MyCommand.Path
 $dir = Split-Path $scriptpath
@@ -98,9 +101,9 @@ foreach ($User in $Users)
     
     If ($PowershellTest)
     {
-       If ($User.EmailPolicy = "FALSE" -and !$User.emailAddress)
+       If ($Policy = 0 -and !$Email)
        {
-          MsgBox "Email address is marked assigned but has been left blank, Please review $Detailedname's email settings."
+          [System.Windows.Forms.MessageBox]::Show("Email address is marked assigned but has been left blank, Please review $Detailedname's email settings.","ERROR",0)
           exit
        }
 
@@ -120,7 +123,7 @@ foreach ($User in $Users)
        {enable-mailbox $UserName}
        
        #If mailbox policy is set to FALSE sets the users email address to what has been designated in the $Email variable
-       If($policy = "FALSE")
+       If($policy = 0)
        {set-mailbox -Identity $Detailedname -emailaddresses $Email -emailaddresspolicy 0}
     }
     #Resets the $UserTest & $MailTest Vars to NULL for the next user
